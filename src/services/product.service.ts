@@ -9,41 +9,53 @@ export const productService = {
     category?: string;
     sortBy?: string;
     order?: 'asc' | 'desc';
+    signal?: AbortSignal;
   }): Promise<ProductsResponse> {
-    const { limit, skip, search, category, sortBy, order } = params;
-    
+    const { limit, skip, search, category, sortBy, order, signal } = params;
+
+    // DummyJSON has separate endpoints for search and category.
+    // Search wins when both are present; the list page disables
+    // the category dropdown while searching (see README).
     let url = '/products';
     const queryParams = new URLSearchParams();
-    
+
     queryParams.append('limit', limit.toString());
     queryParams.append('skip', skip.toString());
-    
+
     if (search) {
       url = '/products/search';
       queryParams.append('q', search);
     } else if (category) {
       url = `/products/category/${category}`;
     }
-    
+
     if (sortBy) {
       queryParams.append('sortBy', sortBy);
     }
     if (order) {
       queryParams.append('order', order);
     }
-    
-    const response = await axiosInstance.get<ProductsResponse>(`${url}?${queryParams.toString()}`);
+
+    const response = await axiosInstance.get<ProductsResponse>(`${url}?${queryParams.toString()}`, {
+      signal,
+    });
     return response.data;
   },
 
-  async getProductById(id: number): Promise<Product> {
-    const response = await axiosInstance.get<Product>(`/products/${id}`);
+  async getProductById(id: number, signal?: AbortSignal): Promise<Product> {
+    const response = await axiosInstance.get<Product>(`/products/${id}`, { signal });
     return response.data;
   },
 
   async getCategories(): Promise<string[]> {
-    const response = await axiosInstance.get<string[]>('/products/categories');
-    return response.data;
+    // DummyJSON returns string[] in older docs and {slug,name,url}[]
+    // in newer responses. Normalize to string[] (slugs) for the UI.
+    const response = await axiosInstance.get<string[] | CategoryResponse[]>('/products/categories');
+    const data = response.data;
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+      return (data as CategoryResponse[]).map((c) => c.slug);
+    }
+    return data as string[];
   },
 
   async addProduct(product: ProductFormData): Promise<Product> {

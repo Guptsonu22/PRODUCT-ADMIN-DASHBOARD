@@ -1,70 +1,46 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-import type { SortField, SortOrder } from '@/types/product';
-
+// Presentational only: no router here. The parent page owns the URL
+// (single source of truth) and passes values + callbacks down.
 interface ProductFiltersProps {
   categories: string[];
-  currentCategory: string;
-  currentSearch: string;
-  currentSort: string;
-  currentPageSize: number;
+  searchValue: string;
+  category: string;
+  sort: string;
+  pageSize: number;
+  isSearchActive: boolean;
   onSearchChange: (value: string) => void;
   onCategoryChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPageSizeChange: (value: number) => void;
-  isSearchActive: boolean;
 }
 
 export function ProductFilters({
   categories,
-  currentCategory,
-  currentSearch,
-  currentSort,
-  currentPageSize,
+  searchValue,
+  category,
+  sort,
+  pageSize,
   onSearchChange,
   onCategoryChange,
   onSortChange,
   onPageSizeChange,
   isSearchActive,
 }: ProductFiltersProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const updateUrl = (newParams: Record<string, string | number | undefined>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value === undefined || value === '' || value === 0) {
-        params.delete(key);
-      } else {
-        params.set(key, value.toString());
-      }
-    });
-    router.push(`/products?${params.toString()}`);
-  };
-
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    onSearchChange(value);
-    updateUrl({ search: value || undefined, page: 1 });
+    onSearchChange(e.target.value);
   };
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    onCategoryChange(value);
-    updateUrl({ category: value || undefined, page: 1 });
+    onCategoryChange(e.target.value);
   };
 
   const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    onSortChange(value);
-    updateUrl({ sort: value || undefined, page: 1 });
+    onSortChange(e.target.value);
   };
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = parseInt(e.target.value, 10);
-    onPageSizeChange(value);
-    updateUrl({ pageSize: value, page: 1 });
+    onPageSizeChange(parseInt(e.target.value, 10));
   };
 
   const sortOptions: { value: string; label: string }[] = [
@@ -84,7 +60,7 @@ export function ProductFilters({
         <input
           type="text"
           id="search"
-          value={currentSearch}
+          value={searchValue}
           onChange={handleSearchChange}
           placeholder="Search products..."
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -96,7 +72,7 @@ export function ProductFilters({
         <label htmlFor="category" className="sr-only">Filter by category</label>
         <select
           id="category"
-          value={currentCategory}
+          value={category}
           onChange={handleCategoryChange}
           disabled={isSearchActive}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
@@ -118,7 +94,7 @@ export function ProductFilters({
         <label htmlFor="sort" className="sr-only">Sort by</label>
         <select
           id="sort"
-          value={currentSort}
+          value={sort}
           onChange={handleSortChange}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           aria-label="Sort products"
@@ -135,7 +111,7 @@ export function ProductFilters({
         <label htmlFor="pageSize" className="sr-only">Items per page</label>
         <select
           id="pageSize"
-          value={currentPageSize}
+          value={pageSize}
           onChange={handlePageSizeChange}
           className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           aria-label="Items per page"

@@ -1,5 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { authUtils } from '@/lib/auth';
 
+// Single shared Axios instance. Base URL comes from env so it is not hardcoded.
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dummyjson.com';
 
 export const axiosInstance = axios.create({
@@ -9,30 +11,10 @@ export const axiosInstance = axios.create({
   },
 });
 
-let authToken: string | null = null;
-
-export const setAuthToken = (token: string | null) => {
-  authToken = token;
-  if (typeof window !== 'undefined') {
-    if (token) {
-      localStorage.setItem('auth_token', token);
-    } else {
-      localStorage.removeItem('auth_token');
-    }
-  }
-};
-
-export const getAuthToken = (): string | null => {
-  if (authToken) return authToken;
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('auth_token');
-  }
-  return null;
-};
-
+// Attach token to every request. Token lives only in lib/auth (single source).
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getAuthToken();
+    const token = authUtils.getToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,12 +23,13 @@ axiosInstance.interceptors.request.use(
   (error: AxiosError) => Promise.reject(error)
 );
 
+// Central place for auth errors. Any 401 clears local auth and goes to login.
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      setAuthToken(null);
-      if (typeof window !== 'undefined') {
+      authUtils.clearAuth();
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         window.location.href = '/login';
       }
     }

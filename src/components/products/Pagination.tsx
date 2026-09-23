@@ -1,23 +1,18 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
-
+// Presentational only: parent owns the URL and passes onPageChange.
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
   totalItems: number;
   pageSize: number;
+  onPageChange: (page: number) => void;
 }
 
-export function Pagination({ currentPage, totalPages, totalItems, pageSize }: PaginationProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
+export function Pagination({ currentPage, totalPages, totalItems, pageSize, onPageChange }: PaginationProps) {
   const updatePage = (page: number) => {
     if (page < 1 || page > totalPages) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('page', page.toString());
-    router.push(`/products?${params.toString()}`);
+    onPageChange(page);
   };
 
   const startItem = (currentPage - 1) * pageSize + 1;

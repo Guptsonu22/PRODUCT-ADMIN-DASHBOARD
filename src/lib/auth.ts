@@ -1,5 +1,7 @@
 import type { LoginResponse } from '@/types/auth';
 
+// NOTE: localStorage is used here only because this is a frontend demo
+// with DummyJSON. It is not secure session management for real production.
 const USER_KEY = 'auth_user';
 const TOKEN_KEY = 'auth_token';
 
