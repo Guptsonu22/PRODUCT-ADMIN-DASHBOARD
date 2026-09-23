@@ -20,9 +20,12 @@ export function ProductReviews({ reviews }: { reviews: ProductReview[] }) {
 
   return (
     <ul className="space-y-3">
-      {reviews.map((review) => (
+      {reviews.map((review, index) => (
         <li
-          key={review.id ?? `${review.reviewerName}-${review.date}`}
+          // DummyJSON reviews carry no id, so fall back to email + date.
+          // The index guarantees uniqueness when one reviewer posts twice
+          // with the same timestamp (sibling keys only need local uniqueness).
+          key={review.id ?? `${review.reviewerEmail ?? review.reviewerName}-${review.date}-${index}`}
           className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
         >
           <div className="flex items-center justify-between gap-3">

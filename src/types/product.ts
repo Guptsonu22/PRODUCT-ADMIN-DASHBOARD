@@ -4,7 +4,9 @@ export interface ProductImage {
 }
 
 export interface ProductReview {
-  id: number;
+  // DummyJSON reviews currently have no id field; present only if the API
+  // (or a future version) provides one, in which case it is preferred as key.
+  id?: number;
   rating: number;
   comment: string;
   date: string;
