@@ -1,10 +1,11 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { productService } from '@/services/product.service';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useProductMutations } from '@/context/ProductMutationContext';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { ProductTable } from '@/components/products/ProductTable';
 import { ProductCard } from '@/components/products/ProductCard';
@@ -72,7 +73,35 @@ function ProductsContent() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  const totalPages = Math.ceil(total / pageSize);
+  // Local mutation overlay (in-memory; DummyJSON never persists mutations).
+  const {
+    addedProducts,
+    updatedProducts,
+    deletedProductIds,
+    notice,
+    deleteLocalProduct,
+    isLocalOnly,
+    setNotice,
+  } = useProductMutations();
+
+  // Merge server rows with local state: drop deleted, replace updated.
+  // Added products appear on top of page 1 of the default view only, since
+  // the server owns sorting/searching/filtering and faking local rows into
+  // those result sets would be misleading (see README).
+  const isDefaultView = !isSearchActive && !urlCategory && !sort;
+  const visibleProducts = useMemo(() => {
+    const merged = products
+      .filter((p) => !deletedProductIds.includes(p.id))
+      .map((p) => updatedProducts[p.id] ?? p);
+    if (isDefaultView && page === 1 && addedProducts.length > 0) {
+      return [...addedProducts, ...merged];
+    }
+    return merged;
+  }, [products, deletedProductIds, updatedProducts, addedProducts, isDefaultView, page]);
+
+  const displayTotal =
+    total - (isDefaultView ? deletedProductIds.length : 0) + (isDefaultView && page === 1 ? addedProducts.length : 0);
+  const totalPages = Math.ceil(Math.max(displayTotal, 0) / pageSize);
 
   const updateUrl = useCallback(
     (overrides: Record<string, string | number | undefined>, mode: 'push' | 'replace' = 'push') => {
@@ -175,12 +204,18 @@ function ProductsContent() {
     setIsDeleting(true);
     setActionError('');
     try {
-      await productService.deleteProduct(deleteTarget.id);
-      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
-      setTotal((prev) => Math.max(0, prev - 1));
+      if (!isLocalOnly(deleteTarget.id)) {
+        // Server rows go through the simulated DELETE API first...
+        await productService.deleteProduct(deleteTarget.id);
+      }
+      // ...but the UI hides the row via local state either way, since
+      // DummyJSON never persists the deletion. Local-only rows skip the
+      // API call (no server row exists). Failures keep the row visible.
+      deleteLocalProduct(deleteTarget.id);
+      setNotice(`"${deleteTarget.title}" deleted.`);
       setDeleteTarget(null);
     } catch {
-      setActionError('Delete failed. Please try again.');
+      setActionError('Unable to delete product. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -203,6 +238,20 @@ function ProductsContent() {
         <p role="alert" className="mb-4 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
           {actionError}
         </p>
+      )}
+
+      {notice && (
+        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
+          <span role="status">{notice}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss notification"
+            className="px-2 py-0.5 font-medium rounded hover:bg-green-100 dark:hover:bg-green-900/40 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            ✕
+          </button>
+        </div>
       )}
 
       {catError && (
