@@ -301,7 +301,7 @@ function ProductsContent() {
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
           <ErrorState message={error} onRetry={() => setRetryKey((k) => k + 1)} />
         </div>
-      ) : products.length === 0 ? (
+      ) : visibleProducts.length === 0 ? (
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg">
           <EmptyState title="No products found." description="Try changing your search or filters." />
         </div>
@@ -309,14 +309,14 @@ function ProductsContent() {
         <div>
           <div className="hidden md:block bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
             <ProductTable
-              products={products}
+              products={visibleProducts}
               onView={(p) => router.push(`/products/${p.id}`)}
               onEdit={(p) => router.push(`/products/${p.id}/edit`)}
               onDelete={setDeleteTarget}
             />
           </div>
           <div className="grid gap-4 md:hidden">
-            {products.map((p) => (
+            {visibleProducts.map((p) => (
               <ProductCard
                 key={p.id}
                 product={p}
@@ -329,12 +329,12 @@ function ProductsContent() {
         </div>
       )}
 
-      {!isLoading && !error && total > 0 && (
+      {!isLoading && !error && displayTotal > 0 && (
         <div className="mt-4">
           <Pagination
             currentPage={page}
             totalPages={totalPages}
-            totalItems={total}
+            totalItems={displayTotal}
             pageSize={pageSize}
             onPageChange={(next) => updateUrl({ page: next })}
           />

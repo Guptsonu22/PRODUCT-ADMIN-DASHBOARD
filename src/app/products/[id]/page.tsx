@@ -8,12 +8,15 @@ import { ProductImageGallery } from '@/components/products/ProductImageGallery';
 import { ProductReviews } from '@/components/products/ProductReviews';
 import { DeleteConfirmModal } from '@/components/products/DeleteConfirmModal';
 import { ErrorState } from '@/components/common/ErrorState';
+import { useProductMutations } from '@/context/ProductMutationContext';
 import type { Product } from '@/types/product';
 
 type Status = 'loading' | 'ready' | 'error' | 'not-found';
 
 // Page owns route params + fetch state. API lives in productService only.
-// Auth is already handled by the products layout guard.
+// Auth is already handled by the products layout guard. Local mutations
+// overlay the server data: deleted IDs show not-found, added/updated
+// versions render without a server round-trip.
 export default function ProductDetailsPage() {
   const router = useRouter();
   const params = useParams();
@@ -23,8 +26,16 @@ export default function ProductDetailsPage() {
   const numericId = Number(rawId);
   const isValidId = Number.isInteger(numericId) && numericId >= 1;
 
-  const [status, setStatus] = useState<Status>(isValidId ? 'loading' : 'not-found');
-  const [product, setProduct] = useState<Product | null>(null);
+  const { getLocalProduct, isLocalOnly, isDeleted, deleteLocalProduct, setNotice } = useProductMutations();
+  const wasDeleted = isValidId && isDeleted(numericId);
+  const localProduct = !wasDeleted && isValidId ? getLocalProduct(numericId) : undefined;
+  const hasLocal = !!localProduct;
+
+  const [status, setStatus] = useState<Status>(() => {
+    if (!isValidId || wasDeleted) return 'not-found';
+    return localProduct ? 'ready' : 'loading';
+  });
+  const [product, setProduct] = useState<Product | null>(() => localProduct ?? null);
   const [retryKey, setRetryKey] = useState(0);
 
   const [showDelete, setShowDelete] = useState(false);
@@ -32,8 +43,8 @@ export default function ProductDetailsPage() {
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
-    // Invalid IDs never reach the API: initial status is already 'not-found'.
-    if (!isValidId) return;
+    // Invalid, deleted, or already-local products never reach the API.
+    if (!isValidId || wasDeleted || hasLocal) return;
     const controller = new AbortController();
     let ignored = false;
 
@@ -61,18 +72,24 @@ export default function ProductDetailsPage() {
       ignored = true;
       controller.abort();
     };
-  }, [isValidId, numericId, retryKey]);
+  }, [isValidId, numericId, retryKey, wasDeleted, hasLocal]);
 
   const confirmDelete = async () => {
     if (!product || isDeleting) return; // block double-click deletes
     setIsDeleting(true);
     setActionError('');
     try {
-      await productService.deleteProduct(product.id);
+      if (!isLocalOnly(product.id)) {
+        await productService.deleteProduct(product.id);
+      }
+      // Local-only rows skip the API call (no server row exists).
+      // Either way the overlay hides the product from list + details.
+      deleteLocalProduct(product.id);
+      setNotice(`"${product.title}" deleted.`);
       router.push('/products');
       router.refresh();
     } catch {
-      setActionError('Delete failed. Please try again.');
+      setActionError('Unable to delete product. Please try again.');
     } finally {
       setIsDeleting(false);
     }

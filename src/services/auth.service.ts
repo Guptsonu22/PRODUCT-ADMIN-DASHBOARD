@@ -4,7 +4,9 @@ import type { LoginCredentials, LoginResponse } from '@/types/auth';
 export const authService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     const response = await axiosInstance.post<LoginResponse>('/auth/login', credentials);
-    return response.data;
+    const token = response.data.accessToken ?? response.data.token;
+    if (!token) throw new Error('Login response did not include a token.');
+    return { ...response.data, token };
   },
 
   async getCurrentUser(token: string): Promise<LoginResponse> {

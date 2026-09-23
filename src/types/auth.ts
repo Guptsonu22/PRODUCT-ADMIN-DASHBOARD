@@ -11,7 +11,11 @@ export interface LoginResponse {
   lastName: string;
   gender: string;
   image: string;
+  // DummyJSON returns `accessToken` (older docs used `token`).
+  // authService.login normalizes both shapes into `token`.
   token: string;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 export interface AuthState {
